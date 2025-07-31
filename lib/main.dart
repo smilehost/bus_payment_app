@@ -28,6 +28,7 @@ class FarePaymentApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData.dark().copyWith(
         scaffoldBackgroundColor: const Color(0xFF0D1B2A),
+        focusColor: const Color(0xFF0D1B2A),
       ),
       home: const MainTabPage(),
     );

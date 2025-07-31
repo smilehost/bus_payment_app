@@ -252,148 +252,154 @@ class _UnifiedFarePageState extends State<UnifiedFarePage> {
 
   @override
   Widget build(BuildContext context) {
-    return KeyboardListener(
-      focusNode: _focusNode,
-      onKeyEvent: (event) {
-        if (isLoading || isCooldown) return;
+    return Focus(
+      canRequestFocus: false, // ✅ ปิดการแสดงขอบ focus
+      child: KeyboardListener(
+        focusNode: _focusNode,
+        onKeyEvent: (event) {
+          if (isLoading || isCooldown) return;
 
-        if (event.character != null && event.character!.isNotEmpty) {
-          _controller.text += event.character!;
-          final asciiOnly = _controller.text.replaceAll(
-            RegExp(r'[^A-Za-z0-9]'),
-            '',
-          );
+          if (event.character != null && event.character!.isNotEmpty) {
+            _controller.text += event.character!;
+            final asciiOnly = _controller.text.replaceAll(
+              RegExp(r'[^A-Za-z0-9]'),
+              '',
+            );
 
-          // ตัดให้ไม่เกิน 64 ตัวอักษร
-          if (asciiOnly.length > 64) {
-            _controller.text = asciiOnly.substring(0, 64);
-            return;
+            // ตัดให้ไม่เกิน 64 ตัวอักษร
+            if (asciiOnly.length > 64) {
+              _controller.text = asciiOnly.substring(0, 64);
+              return;
+            }
+
+            //  Reset timeout ทุกครั้งที่มีตัวอักษรเข้ามา
+            scanTimeoutTimer?.cancel();
+            scanTimeoutTimer = Timer(const Duration(seconds: 1), () {
+              if (asciiOnly.length < 64) {
+                _controller.clear();
+                showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (context) {
+                    Future.delayed(const Duration(seconds: 2), () {
+                      Navigator.of(context).pop(); // ปิดเองใน 2 วิ
+                    });
+
+                    return AlertDialog(
+                      backgroundColor: const Color(0xFF0D1B2A),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(32),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        vertical: 40,
+                        horizontal: 32,
+                      ),
+                      content: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: const [
+                          Icon(
+                            Icons.error_outline,
+                            color: Colors.redAccent,
+                            size: 96,
+                          ),
+                          SizedBox(height: 24),
+                          Text(
+                            'ไม่สามารถอ่านข้อมูลบัตรได้',
+                            style: TextStyle(
+                              fontSize: 36,
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          SizedBox(height: 24),
+                          Text(
+                            'กรุณาสแกนใหม่อีกครั้ง',
+                            style: TextStyle(
+                              fontSize: 36,
+                              color: Colors.white70,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                );
+              }
+            });
+
+            //  กรณีครบ 64 ตัวอักษรพอดี → เคลียร์และยิง handler
+            debounceTimer?.cancel();
+            debounceTimer = Timer(const Duration(milliseconds: 300), () {
+              if (asciiOnly.length == 64) {
+                _controller.clear();
+                scanTimeoutTimer?.cancel(); // ❌ ยกเลิก timeout ถ้าสำเร็จ
+                handleCardScan(asciiOnly);
+              }
+            });
           }
-
-          //  Reset timeout ทุกครั้งที่มีตัวอักษรเข้ามา
-          scanTimeoutTimer?.cancel();
-          scanTimeoutTimer = Timer(const Duration(seconds: 1), () {
-            if (asciiOnly.length < 64) {
-              _controller.clear();
-              showDialog(
-                context: context,
-                barrierDismissible: false,
-                builder: (context) {
-                  Future.delayed(const Duration(seconds: 2), () {
-                    Navigator.of(context).pop(); // ปิดเองใน 2 วิ
-                  });
-
-                  return AlertDialog(
-                    backgroundColor: const Color(0xFF0D1B2A),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(32),
+        },
+        child: Scaffold(
+          // backgroundColor: const Color(0xFF0D1B2A),
+          // backgroundColor: const Color.fromARGB(255, 204, 17, 23),
+          body: Stack(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(24),
+                child: Row(
+                  children: [
+                    // 🔹 ฝั่งแสดงค่าโดยสาร
+                    Expanded(
+                      flex: 5,
+                      child: FareDisplay(
+                        currentPrice: currentPrice,
+                        serial: serial,
+                        lastLoadedUrl: _lastLoadedUrl,
+                      ),
                     ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      vertical: 40,
-                      horizontal: 32,
-                    ),
-                    content: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: const [
-                        Icon(
-                          Icons.error_outline,
-                          color: Colors.redAccent,
-                          size: 96,
-                        ),
-                        SizedBox(height: 24),
-                        Text(
-                          'ไม่สามารถอ่านข้อมูลบัตรได้',
-                          style: TextStyle(
-                            fontSize: 36,
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        SizedBox(height: 24),
-                        Text(
-                          'กรุณาสแกนใหม่อีกครั้ง',
-                          style: TextStyle(fontSize: 36, color: Colors.white70),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              );
-            }
-          });
-
-          //  กรณีครบ 64 ตัวอักษรพอดี → เคลียร์และยิง handler
-          debounceTimer?.cancel();
-          debounceTimer = Timer(const Duration(milliseconds: 300), () {
-            if (asciiOnly.length == 64) {
-              _controller.clear();
-              scanTimeoutTimer?.cancel(); // ❌ ยกเลิก timeout ถ้าสำเร็จ
-              handleCardScan(asciiOnly);
-            }
-          });
-        }
-      },
-      child: Scaffold(
-        backgroundColor: const Color(0xFF0D1B2A),
-        // backgroundColor: const Color.fromARGB(255, 204, 17, 23),
-        body: Stack(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(24),
-              child: Row(
-                children: [
-                  // 🔹 ฝั่งแสดงค่าโดยสาร
-                  Expanded(
-                    flex: 5,
-                    child: FareDisplay(
-                      currentPrice: currentPrice,
-                      serial: serial,
-                      lastLoadedUrl: _lastLoadedUrl,
-                    ),
-                  ),
-                  const SizedBox(width: 24),
-                  // 🔹 ฝั่งแสดง QR PromptPay
-                  buildPromptPaySection(),
-                ],
-              ),
-            ),
-
-            // 🔹 Overlay แสดงสถานะโหลดหรือ cooldown
-            if (isLoading || isCooldown)
-              Container(
-                color: Colors.black.withOpacity(0.6),
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      if (isLoading) ...[
-                        const CircularProgressIndicator(color: Colors.white),
-                        const SizedBox(height: 16),
-                        const Text(
-                          'กำลังตรวจสอบบัตร...',
-                          style: TextStyle(fontSize: 28, color: Colors.white),
-                        ),
-                      ] else if (isCooldown) ...[
-                        const Icon(
-                          Icons.timer_outlined,
-                          color: Colors.white,
-                          size: 64,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'กรุณารอสแกนอีก $cooldownSeconds วินาที',
-                          style: const TextStyle(
-                            fontSize: 28,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
+                    const SizedBox(width: 24),
+                    // 🔹 ฝั่งแสดง QR PromptPay
+                    buildPromptPaySection(),
+                  ],
                 ),
               ),
-          ],
+
+              // 🔹 Overlay แสดงสถานะโหลดหรือ cooldown
+              if (isLoading || isCooldown)
+                Container(
+                  color: Colors.black.withOpacity(0.6),
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        if (isLoading) ...[
+                          const CircularProgressIndicator(color: Colors.white),
+                          const SizedBox(height: 16),
+                          const Text(
+                            'กำลังตรวจสอบบัตร...',
+                            style: TextStyle(fontSize: 28, color: Colors.white),
+                          ),
+                        ] else if (isCooldown) ...[
+                          const Icon(
+                            Icons.timer_outlined,
+                            color: Colors.white,
+                            size: 64,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'กรุณารอสแกนอีก $cooldownSeconds วินาที',
+                            style: const TextStyle(
+                              fontSize: 28,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );

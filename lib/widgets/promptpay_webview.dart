@@ -27,7 +27,7 @@ class PromptPayWebView extends StatelessWidget {
   const PromptPayWebView({
     super.key,
     required this.controller,
-    this.zoomScale = 1.5, //ขยาย (1.0 = ปกติ)
+    this.zoomScale = 1.0, //ขยาย (1.0 = ปกติ)
   });
 
   @override

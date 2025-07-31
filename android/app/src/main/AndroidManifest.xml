@@ -8,7 +8,7 @@
     <uses-permission android:name="android.permission.READ_PHONE_STATE"/>
 
     <application
-        android:label="bus_payment_app"
+        android:label="Bussing Payment"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         
