@@ -16,6 +16,8 @@ dependencies:
   device_info_plus: ^9.1.1
   intl: ^0.18.1
   cupertino_icons: ^1.0.8
+  geolocator: ^11.0.2
+  audioplayers: ^5.2.1
 
 dev_dependencies:
   flutter_test:
@@ -28,6 +30,8 @@ flutter:
   assets:
     - .env
     - assets/icon/app_icon.png
+    - assets/sounds/complete.mp3
+    - assets/sounds/incomplete.mp3
 
 flutter_icons:
   android: true

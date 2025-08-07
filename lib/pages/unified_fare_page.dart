@@ -2,6 +2,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:bus_payment_app/models/card_use_response.dart';
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:device_info_plus/device_info_plus.dart';
@@ -12,6 +13,8 @@ import '../utils/device_name_util.dart'; // สำหรับดึงชื่
 import '../widgets/fare_display.dart'; // UI แสดงค่าโดยสาร
 import '../widgets/promptpay_webview.dart'; // UI แสดง QR code
 import '../widgets/result_dialog.dart'; // Dialog แสดงผลการใช้บัตร
+import 'package:geolocator/geolocator.dart';
+import '../models/card_group.dart';
 
 class UnifiedFarePage extends StatefulWidget {
   const UnifiedFarePage({super.key});
@@ -38,11 +41,15 @@ class _UnifiedFarePageState extends State<UnifiedFarePage> {
   bool isCooldown = false; // สถานะ cooldown หลังสแกน
   int cooldownSeconds = 0; // ตัวแปรแสดงวินาที cooldown ที่เหลือ
 
-  double? currentPrice; // ราคาค่าโดยสารล่าสุด
+  double? currentFare; // 🆕 ค่าโดยสารจาก scanbox
+  double? newCardPrice; // 🆕 ราคาซื้อบัตรใหม่จาก activate
+  int? cardGroupId;
   String promptpayUrl = ""; // URL ของ QR PromptPay
   int scanboxComId = 0;
   int scanboxBusId = 0;
   int scanboxBusroundLatest = 0;
+  int scanboxFunc = 0;
+  int scanboxPaymentMethodId = 0;
   String? _lastLoadedUrl;
 
   Timer? scanTimeoutTimer;
@@ -98,21 +105,36 @@ class _UnifiedFarePageState extends State<UnifiedFarePage> {
     print("📱 ชื่อเครื่อง: $deviceName");
   }
 
+  // 🆕 แยกการเลือกว่าจะใช้ราคาใด
+  double getPriceToUse() {
+    if (scanboxFunc == 1 && newCardPrice != null) {
+      return newCardPrice!;
+    } else if (scanboxFunc == 0 && currentFare != null) {
+      return currentFare!;
+    } else {
+      return 0.0;
+    }
+  }
+
   Future<void> loadScanboxData() async {
     // โหลดข้อมูล scanbox จาก serial
     final scanbox = await ScanboxService.getScanboxBySerial(serial); // from API
 
     if (scanbox != null) {
       // เช็คราคาว่ามีการเปลี่ยนแปลงหรือไม่
-      final isPriceChanged = scanbox.currentPrice != currentPrice;
+      final isPriceChanged = scanbox.currentPrice != currentFare; // 🆕
+      final isModeChanged = scanbox.scanboxFunc != scanboxFunc;
 
-      if (isPriceChanged) {
+      if (isPriceChanged || isModeChanged) {
         setState(() {
-          currentPrice = scanbox.currentPrice;
+          currentFare = scanbox.currentPrice; // 🆕 ใช้ currentFare
           promptpayUrl = scanbox.promptpayUrl;
           scanboxComId = scanbox.comId;
           scanboxBusId = scanbox.scanboxBusId;
           scanboxBusroundLatest = scanbox.scanboxBusroundLatest;
+          scanboxFunc = scanbox.scanboxFunc;
+          newCardPrice = null; // 🆕 reset บัตรใหม่เมื่อเปลี่ยนโหมด
+          scanboxPaymentMethodId = scanbox.scanboxPaymentMethodId;
         });
 
         if (_qrController != null && promptpayUrl.isNotEmpty) {
@@ -120,11 +142,14 @@ class _UnifiedFarePageState extends State<UnifiedFarePage> {
           final updatedUri = uri.replace(
             queryParameters: {
               ...uri.queryParameters,
-              'price': currentPrice!.toStringAsFixed(2),
+              'price': getPriceToUse().toStringAsFixed(2), // 🆕
               'device_id': serial,
               'com_id': scanboxComId.toString(),
               'busno': scanboxBusId.toString(),
               'busround': scanboxBusroundLatest.toString(),
+              'method_id': scanboxPaymentMethodId.toString(),
+              'scanbox_func': scanboxFunc.toString(),
+              'cardgroup_id': cardGroupId.toString(),
             },
           );
 
@@ -146,7 +171,7 @@ class _UnifiedFarePageState extends State<UnifiedFarePage> {
     //โหลดกันยิงซ้ำของ card
     setState(() {
       isCooldown = true;
-      cooldownSeconds = 5;
+      cooldownSeconds = 3;
     });
 
     cooldownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
@@ -165,42 +190,121 @@ class _UnifiedFarePageState extends State<UnifiedFarePage> {
     setState(() => isLoading = true);
 
     try {
-      final result = await CardService.useCard(
-        hash,
-        currentPrice,
-        scanboxBusId,
-        scanboxBusroundLatest,
-      );
+      final lat = await getCurrentLatitude();
+      final long = await getCurrentLongitude();
 
-      if (result.status == 'success') {
-        setState(() {
-          remainingTrips = result.remainingBalance;
-          cardType = result.cardType;
-          expireDate = result.expireDate;
-        });
-        showResultDialog(
-          context,
-          // "ใช้บัตรสำเร็จ",
-          result.message,
-          remainingTrips: remainingTrips,
-          cardType: cardType,
-          expireDate: expireDate,
-          onDismiss: () => setState(() => remainingTrips = null),
+      if (scanboxFunc == 1) {
+        // 🔸 เคส ซื้อบัตรใหม่
+        final result = await CardService.activateCard(
+          hash,
+          scanboxBusroundLatest,
         );
+
+        if (result['status'] == 'success') {
+          final CardGroup group = result['data'];
+          setState(() {
+            newCardPrice = group.cardGroupPrice;
+            cardGroupId = group.cardGroupId;
+          });
+
+          // 🆕 trigger reload URL หลังจากได้ราคาใหม่
+          if (_qrController != null && promptpayUrl.isNotEmpty) {
+            final uri = Uri.parse(promptpayUrl);
+            final updatedUri = uri.replace(
+              queryParameters: {
+                ...uri.queryParameters,
+                'price': getPriceToUse().toStringAsFixed(2),
+                'device_id': serial,
+                'com_id': scanboxComId.toString(),
+                'busno': scanboxBusId.toString(),
+                'busround': scanboxBusroundLatest.toString(),
+                'method_id': scanboxPaymentMethodId.toString(),
+                'scanbox_func': scanboxFunc.toString(),
+                'cardgroup_id': cardGroupId.toString(),
+              },
+            );
+
+            final newUrl = updatedUri.toString();
+            if (_lastLoadedUrl != newUrl) {
+              _qrController!.loadRequest(updatedUri);
+              _lastLoadedUrl = newUrl;
+            }
+          }
+
+          showResultDialog(
+            context,
+            "เปิดใช้งานบัตรแล้ว",
+            remainingTrips: null,
+            // cardType: 1,
+            expireDate: null,
+            onDismiss: () {},
+          );
+        } else {
+          showResultDialog(
+            context,
+            (result['message'] != null &&
+                    result['message'].toString().trim().isNotEmpty)
+                ? result['message'].toString()
+                : "ไม่สามารถเปิดใช้งานบัตรได้",
+            isError: true,
+            onDismiss: () {},
+          );
+        }
       } else {
-        showResultDialog(
-          context,
-          // "ไม่สามารถใช้งานบัตรได้",
-          result.message,
-          isError: true,
-          onDismiss: () => setState(() => remainingTrips = null),
-        );
+        // 🔹 เคส ใช้บัตรเดินทาง scanboxFunc == 0
+        final result =
+            await CardService.useCard(
+              hash,
+              getPriceToUse(),
+              scanboxBusId,
+              scanboxBusroundLatest,
+              lat,
+              long,
+            ).timeout(
+              const Duration(seconds: 5),
+              onTimeout: () {
+                return CardUseResponse(
+                  status: 'success',
+                  message: 'ใช้บัตรสำเร็จ (timeout)',
+                  remainingBalance: null,
+                  cardType: null,
+                  expireDate: null,
+                );
+              },
+            );
+
+        if (result.status == 'success') {
+          // setState(() {
+          //   remainingTrips = result.remainingBalance;
+          //   cardType = result.cardType;
+          //   expireDate = result.expireDate;
+          // });
+          setState(() {
+            remainingTrips = result.remainingBalance ?? 0;
+            cardType = result.cardType ?? 0;
+            expireDate = result.expireDate ;
+          });
+          showResultDialog(
+            context,
+            result.message,
+            remainingTrips: remainingTrips,
+            cardType: cardType,
+            expireDate: expireDate,
+            onDismiss: () => setState(() => remainingTrips = null),
+          );
+        } else {
+          showResultDialog(
+            context,
+            result.message,
+            isError: true,
+            onDismiss: () => setState(() => remainingTrips = null),
+          );
+        }
       }
     } catch (e) {
       showResultDialog(
         context,
-        // "เกิดข้อผิดพลาด",
-        "An error occurred",
+        "เกิดข้อผิดพลาด",
         isError: true,
         onDismiss: () => setState(() => remainingTrips = null),
       );
@@ -211,35 +315,70 @@ class _UnifiedFarePageState extends State<UnifiedFarePage> {
   }
 
   Widget buildPromptPaySection() {
-    if (currentPrice == null || promptpayUrl.isEmpty) {
+    if (promptpayUrl.isEmpty) {
       return const Expanded(
         flex: 5,
         child: Center(child: CircularProgressIndicator()),
       );
     }
 
+    if (scanboxFunc == 1 && newCardPrice == null) {
+      // 🆕 แสดงสถานะรอราคา
+      return const Expanded(
+        flex: 5,
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text(
+                'กำลังโหลดราคาบัตร...',
+                style: TextStyle(fontSize: 24, color: Colors.white),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // ✅ กรณีพร้อมแสดง QR แล้ว
     final uri = Uri.parse(promptpayUrl);
     final updatedUri = uri.replace(
       queryParameters: {
         ...uri.queryParameters,
-        'price': currentPrice!.toStringAsFixed(2),
+        'price': getPriceToUse().toStringAsFixed(2),
         'device_id': serial,
         'com_id': scanboxComId.toString(),
         'busno': scanboxBusId.toString(),
         'busround': scanboxBusroundLatest.toString(),
+        'method_id': scanboxPaymentMethodId.toString(),
+        'scanbox_func': scanboxFunc.toString(),
+        'cardgroup_id': cardGroupId.toString(),
       },
     );
 
     print("method URL xxx=>: $updatedUri");
 
-    // โหลด URL เข้า controller
     return Expanded(
       flex: 5,
       child: PromptPayWebView(
-        key: const ValueKey("PromptPayWebView"),
-        controller: _qrController,
+        key: ValueKey(updatedUri.toString()),
+        controller: _qrController!,
+        url: updatedUri.toString(),
+        zoomScale: 1.0,
       ),
     );
+  }
+
+  Future<String> getCurrentLatitude() async {
+    final position = await Geolocator.getCurrentPosition();
+    return position.latitude.toString();
+  }
+
+  Future<String> getCurrentLongitude() async {
+    final position = await Geolocator.getCurrentPosition();
+    return position.longitude.toString();
   }
 
   @override
@@ -340,8 +479,6 @@ class _UnifiedFarePageState extends State<UnifiedFarePage> {
           }
         },
         child: Scaffold(
-          // backgroundColor: const Color(0xFF0D1B2A),
-          // backgroundColor: const Color.fromARGB(255, 204, 17, 23),
           body: Stack(
             children: [
               Padding(
@@ -352,9 +489,10 @@ class _UnifiedFarePageState extends State<UnifiedFarePage> {
                     Expanded(
                       flex: 5,
                       child: FareDisplay(
-                        currentPrice: currentPrice,
+                        currentPrice: getPriceToUse(), // 🆕
                         serial: serial,
                         lastLoadedUrl: _lastLoadedUrl,
+                        scanboxFunc: scanboxFunc,
                       ),
                     ),
                     const SizedBox(width: 24),
@@ -363,8 +501,6 @@ class _UnifiedFarePageState extends State<UnifiedFarePage> {
                   ],
                 ),
               ),
-
-              // 🔹 Overlay แสดงสถานะโหลดหรือ cooldown
               if (isLoading || isCooldown)
                 Container(
                   color: Colors.black.withOpacity(0.6),

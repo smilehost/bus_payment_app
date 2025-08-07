@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 // import 'pages/member_card_page.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:geolocator/geolocator.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -14,9 +15,30 @@ Future<void> main() async {
     DeviceOrientation.landscapeLeft,
     DeviceOrientation.landscapeRight,
   ]);
-
+  // await getCurrentLatitude2();
   runApp(const FarePaymentApp());
 }
+
+// Future<void> getCurrentLatitude2() async {
+//   try {
+//     LocationPermission permission = await Geolocator.checkPermission();
+//     if (permission == LocationPermission.denied ||
+//         permission == LocationPermission.deniedForever) {
+//       permission = await Geolocator.requestPermission();
+//       if (permission == LocationPermission.denied ||
+//           permission == LocationPermission.deniedForever) {
+//         print("❌ Location permission denied");
+//         return;
+//       }
+//     }
+
+//     final position = await Geolocator.getCurrentPosition();
+//     print("📍 LAT: ${position.latitude}");
+//     print("📍 LONG: ${position.longitude}");
+//   } catch (e) {
+//     print("❌ Location error: $e");
+//   }
+// }
 
 class FarePaymentApp extends StatelessWidget {
   const FarePaymentApp({super.key});

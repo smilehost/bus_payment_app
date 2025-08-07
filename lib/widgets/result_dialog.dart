@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-
 import 'package:intl/intl.dart';
+import 'package:audioplayers/audioplayers.dart'; // 🆕 เพิ่มสำหรับเล่นเสียง
 
 void showResultDialog(
   BuildContext context,
@@ -15,6 +15,13 @@ void showResultDialog(
   final expireText = expireDate != null
       ? "หมดอายุ ${DateFormat('dd/MM/yyyy HH:mm').format(expireDate)}"
       : "";
+
+  // 🆕 เล่นเสียงทันทีเมื่อเรียก dialog
+  final player = AudioPlayer();
+  final soundPath = isError
+      ? 'sounds/incomplete.mp3'
+      : 'sounds/complete.mp3';
+  player.play(AssetSource(soundPath));
 
   showDialog(
     context: context,
@@ -62,6 +69,7 @@ void showResultDialog(
     ),
   );
 
+  // 🕒 ปิด dialog อัตโนมัติใน 3 วินาที
   Future.delayed(const Duration(seconds: 3), () {
     if (context.mounted) {
       Navigator.of(context, rootNavigator: true).pop();

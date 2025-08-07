@@ -7,6 +7,8 @@ class Scanbox {
   final double currentPrice;
   final int scanboxBusId;
   final int scanboxBusroundLatest;
+  final int scanboxPaymentMethodId;
+  final int scanboxFunc;
 
   Scanbox({
     required this.scanboxId,
@@ -17,6 +19,8 @@ class Scanbox {
     required this.currentPrice,
     required this.scanboxBusId,
     required this.scanboxBusroundLatest,
+    required this.scanboxPaymentMethodId,
+    required this.scanboxFunc,
   });
 
   factory Scanbox.fromJson(Map<String, dynamic> json) {
@@ -29,6 +33,8 @@ class Scanbox {
       currentPrice: (json['scanbox_current_price'] ?? 0).toDouble(),
       scanboxBusId: json['scanbox_bus_id'],
       scanboxBusroundLatest: json['scanbox_busround_latest'],
+      scanboxPaymentMethodId: json['scanbox_payment_method_id'],
+      scanboxFunc: json['scanbox_func'],
     );
   }
 }
