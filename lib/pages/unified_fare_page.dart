@@ -171,7 +171,7 @@ class _UnifiedFarePageState extends State<UnifiedFarePage> {
     //โหลดกันยิงซ้ำของ card
     setState(() {
       isCooldown = true;
-      cooldownSeconds = 3;
+      cooldownSeconds = 1;
     });
 
     cooldownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
@@ -190,8 +190,9 @@ class _UnifiedFarePageState extends State<UnifiedFarePage> {
     setState(() => isLoading = true);
 
     try {
-      final lat = await getCurrentLatitude();
-      final long = await getCurrentLongitude();
+      final position = await getPositionWithFallback();
+      final lat = position.latitude.toString();
+      final long = position.longitude.toString();
 
       if (scanboxFunc == 1) {
         // 🔸 เคส ซื้อบัตรใหม่
@@ -282,7 +283,7 @@ class _UnifiedFarePageState extends State<UnifiedFarePage> {
           setState(() {
             remainingTrips = result.remainingBalance ?? 0;
             cardType = result.cardType ?? 0;
-            expireDate = result.expireDate ;
+            expireDate = result.expireDate;
           });
           showResultDialog(
             context,
@@ -371,14 +372,43 @@ class _UnifiedFarePageState extends State<UnifiedFarePage> {
     );
   }
 
-  Future<String> getCurrentLatitude() async {
-    final position = await Geolocator.getCurrentPosition();
-    return position.latitude.toString();
-  }
+  // Future<String> getCurrentLatitude() async {
+  //   try {
+  //     final position = await Geolocator.getCurrentPosition(
+  //       desiredAccuracy: LocationAccuracy.medium, // Balanced ระหว่างความเร็วและความแม่นยำ
+  //       timeLimit: const Duration(seconds: 3), // ป้องกันค้าง
+  //     );
+  //     return position.latitude.toString();
+  //   } catch (_) {
+  //     final lastPosition = await Geolocator.getLastKnownPosition();
+  //     return lastPosition?.latitude.toString() ?? '';
+  //   }
+  // }
 
-  Future<String> getCurrentLongitude() async {
-    final position = await Geolocator.getCurrentPosition();
-    return position.longitude.toString();
+  //   Future<String> getCurrentLongitude() async {
+  //   try {
+  //     final position = await Geolocator.getCurrentPosition(
+  //       desiredAccuracy: LocationAccuracy.medium, // Balanced ระหว่างความเร็วและความแม่นยำ
+  //       timeLimit: const Duration(seconds: 3), // ป้องกันค้าง
+  //     );
+  //     return position.longitude.toString();
+  //   } catch (_) {
+  //     final lastPosition = await Geolocator.getLastKnownPosition();
+  //     return lastPosition?.longitude.toString() ?? '';
+  //   }
+  // }
+
+  Future<Position> getPositionWithFallback() async {
+    try {
+      return await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.medium,
+        timeLimit: const Duration(seconds: 4),
+      );
+    } catch (_) {
+      final lastKnown = await Geolocator.getLastKnownPosition();
+      if (lastKnown != null) return lastKnown;
+      rethrow;
+    }
   }
 
   @override
