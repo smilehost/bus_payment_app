@@ -1,0 +1,2 @@
+include(":install_plugin")
+project(":install_plugin").projectDir = File(rootProject.projectDir, "plugins/install_plugin/android")
