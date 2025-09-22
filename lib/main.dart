@@ -1,10 +1,11 @@
 import 'package:bus_payment_app/pages/unified_fare_page.dart';
+import 'package:bus_payment_app/services/fare_service.dart';
 import 'package:flutter/material.dart';
 // import 'pages/promptpay_page.dart';
 // import 'pages/member_card_page.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:geolocator/geolocator.dart';
+import 'package:overlay_support/overlay_support.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -16,7 +17,9 @@ Future<void> main() async {
     DeviceOrientation.landscapeRight,
   ]);
   // await getCurrentLatitude2();
-  runApp(const FarePaymentApp());
+  // runApp(const FarePaymentApp());
+  // ScanboxService.init(); //FIXME: อย่าลืมเปิดดดด
+  runApp(const OverlaySupport.global(child: const FarePaymentApp()));
 }
 
 // Future<void> getCurrentLatitude2() async {

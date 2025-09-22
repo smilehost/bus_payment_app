@@ -13,8 +13,9 @@ class ScanboxService {
       url,
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({"scanbox_serial": serial}),
+      // body: jsonEncode({"scanbox_serial": "bus_pcb_002"}),
     );
-
+    print("url=>: $url");
     final data = jsonDecode(response.body);
     if (response.statusCode == 200 && data['status'] == true) {
       return Scanbox.fromJson(data['data']);

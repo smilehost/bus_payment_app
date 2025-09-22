@@ -2,7 +2,7 @@ name: bus_payment_app
 description: "A new Flutter project."
 publish_to: "none"
 
-version: 1.0.4+1
+version: 1.0.5+1
 
 environment:
   sdk: ^3.8.0
@@ -25,6 +25,7 @@ dependencies:
   flutter_secure_storage: ^9.2.4
   overlay_support: ^2.1.0
   package_info_plus: ^8.3.1
+  socket_io_client: ^2.0.3
   
 dependency_overrides:
   install_plugin:

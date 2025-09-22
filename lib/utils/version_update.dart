@@ -56,7 +56,7 @@ class VersionUpdater {
           validateStatus: (s) => s != null && s >= 200 && s < 500,
           headers: {
             // 'Authorization': 'Bearer $token',
-            'com_id': 4, // Express จะ lowercase เป็น 'comid'
+            'com_id': dotenv.env['COM_ID'] ?? '', // Express จะ lowercase เป็น 'comid'
             'Accept': 'application/json',
           },
         ),
@@ -75,7 +75,7 @@ class VersionUpdater {
           ? res.data as Map
           : json.decode(res.data as String) as Map;
 
-      final minVersion = (data['min_supported_version'] ?? '')
+      final minVersion = (data['min_supported_version'] ?? '') 
           .toString()
           .trim();
       final latestVersion = (data['latest_version'] ?? '').toString().trim();

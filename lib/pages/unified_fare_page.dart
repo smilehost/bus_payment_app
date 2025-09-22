@@ -3,6 +3,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:bus_payment_app/models/card_use_response.dart';
+import 'package:bus_payment_app/widgets/activate_display.dart';
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:device_info_plus/device_info_plus.dart';
@@ -118,6 +119,7 @@ class _UnifiedFarePageState extends State<UnifiedFarePage> {
 
   Future<void> loadScanboxData() async {
     // โหลดข้อมูล scanbox จาก serial
+    // print("กำลังโหลดข้อมูล Scanbox สำหรับ serial: $serial");
     final scanbox = await ScanboxService.getScanboxBySerial(serial); // from API
 
     if (scanbox != null) {
@@ -234,7 +236,7 @@ class _UnifiedFarePageState extends State<UnifiedFarePage> {
 
           showResultDialog(
             context,
-            "เปิดใช้งานบัตรแล้ว",
+            "กรุณาชำระเงินเพื่อเปิดใช้งานบัตร",
             remainingTrips: null,
             // cardType: 1,
             expireDate: null,
@@ -441,7 +443,7 @@ class _UnifiedFarePageState extends State<UnifiedFarePage> {
               return;
             }
 
-            //  Reset timeout ทุกครั้งที่มีตัวอักษรเข้ามา
+            // Reset timeout ทุกครั้งที่มีตัวอักษรเข้ามา
             scanTimeoutTimer?.cancel();
             scanTimeoutTimer = Timer(const Duration(seconds: 1), () {
               if (asciiOnly.length < 64) {
@@ -497,7 +499,7 @@ class _UnifiedFarePageState extends State<UnifiedFarePage> {
               }
             });
 
-            //  กรณีครบ 64 ตัวอักษรพอดี → เคลียร์และยิง handler
+            // กรณีครบ 64 ตัวอักษรพอดี → เคลียร์และยิง handler
             debounceTimer?.cancel();
             debounceTimer = Timer(const Duration(milliseconds: 300), () {
               if (asciiOnly.length == 64) {
@@ -511,25 +513,43 @@ class _UnifiedFarePageState extends State<UnifiedFarePage> {
         child: Scaffold(
           body: Stack(
             children: [
-              Padding(
-                padding: const EdgeInsets.all(24),
-                child: Row(
-                  children: [
-                    // 🔹 ฝั่งแสดงค่าโดยสาร
-                    Expanded(
-                      flex: 5,
-                      child: FareDisplay(
-                        currentPrice: getPriceToUse(), // 🆕
-                        serial: serial,
-                        lastLoadedUrl: _lastLoadedUrl,
-                        scanboxFunc: scanboxFunc,
-                      ),
+              // ===================== MAIN BODY =====================
+              Builder(
+                builder: (_) {
+                  final double? price = getPriceToUse(); // อาจเป็น null
+                  final bool showActivate =
+                      (scanboxFunc == 1) && ((price ?? 0) <= 0);
+
+                  if (showActivate) {
+                    // เต็มจอให้สแกนก่อน
+                    return Padding(
+                      padding: const EdgeInsets.all(24.0),
+                      child: const ActivateDisplay(),
+                    );
+                  }
+
+                  // มีราคาแล้ว -> กลับมา UI สองฝั่งเดิม
+                  return Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Row(
+                      children: [
+                        // 🔹 ฝั่งแสดงค่าโดยสาร
+                        Expanded(
+                          flex: 5,
+                          child: FareDisplay(
+                            currentPrice: price, // ใช้ตัวแปรที่คำนวณแล้ว
+                            serial: serial,
+                            lastLoadedUrl: _lastLoadedUrl,
+                            scanboxFunc: scanboxFunc,
+                          ),
+                        ),
+                        const SizedBox(width: 24),
+                        // 🔹 ฝั่งแสดง QR PromptPay
+                        buildPromptPaySection(),
+                      ],
                     ),
-                    const SizedBox(width: 24),
-                    // 🔹 ฝั่งแสดง QR PromptPay
-                    buildPromptPaySection(),
-                  ],
-                ),
+                  );
+                },
               ),
               if (isLoading || isCooldown)
                 Container(

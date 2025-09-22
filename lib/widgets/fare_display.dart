@@ -65,41 +65,42 @@ class _FareDisplayState extends State<FareDisplay> {
               color: Colors.white,
             ),
           ),
-          const SizedBox(height: 24),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              AnimatedSwitcher(
-                duration: const Duration(milliseconds: 500),
-                transitionBuilder: (child, animation) {
-                  return FadeTransition(
-                    opacity: animation,
-                    child: SlideTransition(
-                      position: Tween<Offset>(
-                        begin: const Offset(0.0, 0.3),
-                        end: Offset.zero,
-                      ).animate(animation),
-                      child: child,
-                    ),
-                  );
-                },
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text(
-                    widget.currentPrice != null
-                        ? widget.currentPrice!.toStringAsFixed(2)
-                        : "Loading",
-                    key: ValueKey(widget.currentPrice),
-                    style: const TextStyle(
-                      fontSize: 100,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
+          // const SizedBox(height: 24),
+          Expanded(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 500),
+                  transitionBuilder: (child, animation) {
+                    return FadeTransition(
+                      opacity: animation,
+                      child: SlideTransition(
+                        position: Tween<Offset>(
+                          begin: const Offset(0.0, 0.3),
+                          end: Offset.zero,
+                        ).animate(animation),
+                        child: child,
+                      ),
+                    );
+                  },
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      widget.currentPrice != null
+                          ? widget.currentPrice!.toStringAsFixed(2)
+                          : "Loading",
+                      key: ValueKey(widget.currentPrice),
+                      style: const TextStyle(
+                        fontSize: 100,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 8),
+                const SizedBox(width: 8),
               const Text(
                 '฿',
                 style: TextStyle(
@@ -108,50 +109,55 @@ class _FareDisplayState extends State<FareDisplay> {
                   color: Colors.white70,
                 ),
               ),
-            ],
+              ],
+            ),
           ),
-          const Spacer(),
-          Align(
-            alignment: Alignment.bottomRight,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  widget.serial,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white70,
-                  ),
-                ),
-                const Text(
-                  'Powered By Bussing Transit',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white70,
-                  ),
-                ),
-                const SizedBox(height: 4),
-
-                // ⬇️ Text ที่กดได้แทน FilledButton
-                GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () async {
-                    await VersionUpdater.checkAndMaybeUpdate(context);
-                  },
-                  child: Text(
-                    _version.isNotEmpty ? 'v$_version • $_buildDate' : 'loading...',
+          // const Spacer(),
+          SizedBox(
+            child: Align(
+              alignment: Alignment.bottomRight,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    widget.serial,
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
                       color: Colors.white70,
-                      decoration: TextDecoration.underline,
                     ),
                   ),
-                ),
-              ],
+                  const Text(
+                    'Powered By Bussing Transit',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white70,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+
+                  // ⬇️ Text ที่กดได้แทน FilledButton
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () async {
+                      await VersionUpdater.checkAndMaybeUpdate(context);
+                    },
+                    child: Text(
+                      _version.isNotEmpty
+                          ? 'v$_version • $_buildDate'
+                          : 'loading...',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white70,
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
