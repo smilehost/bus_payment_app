@@ -3,6 +3,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:bus_payment_app/models/card_use_response.dart';
+import 'package:bus_payment_app/services/mock_gps_service.dart';
 import 'package:bus_payment_app/widgets/activate_display.dart';
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
@@ -192,7 +193,7 @@ class _UnifiedFarePageState extends State<UnifiedFarePage> {
     setState(() => isLoading = true);
 
     try {
-      final position = await getPositionWithFallback();
+      final position = await getPositionWithFallback(); //FIXME:
       final lat = position.latitude.toString();
       final long = position.longitude.toString();
 
@@ -400,18 +401,18 @@ class _UnifiedFarePageState extends State<UnifiedFarePage> {
   //   }
   // }
 
-  Future<Position> getPositionWithFallback() async {
-    try {
-      return await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.medium,
-        timeLimit: const Duration(seconds: 4),
-      );
-    } catch (_) {
-      final lastKnown = await Geolocator.getLastKnownPosition();
-      if (lastKnown != null) return lastKnown;
-      rethrow;
-    }
-  }
+  // Future<Position> getPositionWithFallback() async {
+  //   try {
+  //     return await Geolocator.getCurrentPosition(
+  //       desiredAccuracy: LocationAccuracy.medium,
+  //       timeLimit: const Duration(seconds: 4),
+  //     );
+  //   } catch (_) {
+  //     final lastKnown = await Geolocator.getLastKnownPosition();
+  //     if (lastKnown != null) return lastKnown;
+  //     rethrow;
+  //   }
+  // }
 
   @override
   void dispose() {

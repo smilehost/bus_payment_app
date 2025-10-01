@@ -24,6 +24,22 @@ class FareDisplay extends StatefulWidget {
 class _FareDisplayState extends State<FareDisplay> {
   String _version = '';
   static final String _buildDate = dotenv.env['APP_BUILD_DATE'] ?? '';
+
+  // ⬇️ helper สำหรับสเกลฟอนต์ (อิงด้านสั้นของจอ)
+  double _fs(
+    BuildContext context,
+    double base, {
+    double min = .60,
+    double max = 1.60,
+  }) {
+    final shortest = MediaQuery.of(context).size.shortestSide;
+
+    // ใช้ baseline = 720 (tablet กลาง) → จอใหญ่กว่านี้จะ scale > 1
+    // จอเล็กกว่า 720 จะลดลง แต่ไม่ต่ำกว่า min
+    final scale = (shortest / 720).clamp(min, max);
+    return base * scale;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -39,33 +55,44 @@ class _FareDisplayState extends State<FareDisplay> {
 
   @override
   Widget build(BuildContext context) {
+    final isTicket = widget.scanboxFunc == 0;
+
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: widget.scanboxFunc == 0 ? Colors.green : Colors.blue,
+        color: isTicket ? Colors.green : Colors.blue,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          // TH title
           Text(
-            widget.scanboxFunc == 0 ? 'ค่าโดยสาร' : 'ซื้อบัตรใหม่',
-            style: const TextStyle(
-              fontSize: 72,
+            isTicket ? 'ค่าโดยสาร' : 'ซื้อบัตรใหม่',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            softWrap: false,
+            style: TextStyle(
+              fontSize: _fs(context, 72), // เดิม 72
               fontWeight: FontWeight.bold,
               color: Colors.white,
             ),
           ),
+          // EN subtitle
           Text(
-            widget.scanboxFunc == 0 ? 'Fare' : 'Buy tickets',
-            style: const TextStyle(
-              fontSize: 56,
+            isTicket ? 'Fare' : 'Buy tickets',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            softWrap: false,
+            style: TextStyle(
+              fontSize: _fs(context, 56), // เดิม 56
               fontWeight: FontWeight.w500,
               color: Colors.white,
             ),
           ),
-          // const SizedBox(height: 24),
+
+          // ตัวเลขราคา + สัญลักษณ์สกุลเงิน
           Expanded(
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -86,33 +113,37 @@ class _FareDisplayState extends State<FareDisplay> {
                     );
                   },
                   child: FittedBox(
+                    // ยังคง FittedBox เดิมไว้ ช่วย scale ลงถ้ายาว/ใหญ่เกิน
                     fit: BoxFit.scaleDown,
                     child: Text(
                       widget.currentPrice != null
                           ? widget.currentPrice!.toStringAsFixed(2)
                           : "Loading",
                       key: ValueKey(widget.currentPrice),
-                      style: const TextStyle(
-                        fontSize: 100,
+                      style: TextStyle(
+                        fontSize: _fs(context, 100), // เดิม 100
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
+                        height: 1.0,
                       ),
                     ),
                   ),
                 ),
                 const SizedBox(width: 8),
-              const Text(
-                '฿',
-                style: TextStyle(
-                  fontSize: 64,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white70,
+                Text(
+                  '฿',
+                  style: TextStyle(
+                    fontSize: _fs(context, 64), // เดิม 64
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white70,
+                    height: 1.0,
+                  ),
                 ),
-              ),
               ],
             ),
           ),
-          // const Spacer(),
+
+          // มุมล่างขวา: serial / powered by / เวอร์ชัน
           SizedBox(
             child: Align(
               alignment: Alignment.bottomRight,
@@ -122,23 +153,27 @@ class _FareDisplayState extends State<FareDisplay> {
                 children: [
                   Text(
                     widget.serial,
-                    style: const TextStyle(
-                      fontSize: 16,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    softWrap: false,
+                    style: TextStyle(
+                      fontSize: _fs(context, 16),
                       fontWeight: FontWeight.bold,
                       color: Colors.white70,
                     ),
                   ),
-                  const Text(
+                  Text(
                     'Powered By Bussing Transit',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    softWrap: false,
                     style: TextStyle(
-                      fontSize: 16,
+                      fontSize: _fs(context, 16),
                       fontWeight: FontWeight.bold,
                       color: Colors.white70,
                     ),
                   ),
                   const SizedBox(height: 4),
-
-                  // ⬇️ Text ที่กดได้แทน FilledButton
                   GestureDetector(
                     behavior: HitTestBehavior.opaque,
                     onTap: () async {
@@ -148,8 +183,8 @@ class _FareDisplayState extends State<FareDisplay> {
                       _version.isNotEmpty
                           ? 'v$_version • $_buildDate'
                           : 'loading...',
-                      style: const TextStyle(
-                        fontSize: 16,
+                      style: TextStyle(
+                        fontSize: _fs(context, 16),
                         fontWeight: FontWeight.bold,
                         color: Colors.white70,
                         decoration: TextDecoration.underline,
